@@ -37,7 +37,7 @@ ADAPTER_SOURCE = os.getenv("TERRANOVA_ADAPTER") or (
             or (ADAPTER_PATH / "adapter_model.bin").is_file()
         )
     )
-    else "BK0822/teranova"
+    else "BK0822/terranova-qwen25vl-eurosat"
 )
 
 HF_TOKEN = os.getenv("HF_TOKEN") or None

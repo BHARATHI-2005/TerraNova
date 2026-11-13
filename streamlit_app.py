@@ -39,7 +39,7 @@ st.caption("Satellite land-cover analysis with Qwen2.5-VL and EuroSAT classes.")
 st.info("Built with Qwen. Model-generated reports are interpretations, not verified ground truth.")
 st.caption(
     "The fine-tuned adapter must be available at "
-    f"`{os.getenv('TERRANOVA_ADAPTER', 'BK0822/teranova')}`. "
+    f"`{os.getenv('TERRANOVA_ADAPTER', 'BK0822/terranova-qwen25vl-eurosat')}`. "
     "Make the Hugging Face repository public or add `HF_TOKEN` to Streamlit Secrets."
 )
 

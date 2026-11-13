@@ -54,7 +54,7 @@ models/
 └── qwen25vl_eurosat_qlora/
 ```
 
-These large model files are intentionally excluded from this Git repository. The base model can also be downloaded from Hugging Face automatically. The adapter is loaded from the local folder when present; otherwise the app uses `BK0822/teranova`.
+These large model files are intentionally excluded from this Git repository. The base model can also be downloaded from Hugging Face automatically. The adapter is loaded from the local folder when present; otherwise the app uses the model repository `BK0822/terranova-qwen25vl-eurosat`. `BK0822/teranova` is the EuroSAT dataset repository, not the adapter model.
 
 ### 3. Start the app
 
@@ -68,19 +68,19 @@ Open the URL printed by Streamlit. The model loads when you run the first analys
 
 The repository includes `app.py` as the Streamlit Cloud entry point (it launches `streamlit_app.py`) and a Gradio entry point (`terranova_app.py`). For Streamlit Community Cloud, select `app.py` as the app file. A GPU-backed host is recommended.
 
-1. Run the Hugging Face upload section in the Colab notebook. It publishes the adapter and processor files to `BK0822/teranova` and includes the required Qwen license and attribution.
+1. Run the Hugging Face upload section in the Colab notebook. It creates the model repository `BK0822/terranova-qwen25vl-eurosat` and uploads the adapter and processor files with the required Qwen license and attribution. This is separate from the dataset repository `BK0822/teranova`.
 2. Deploy this repository as a Streamlit app using `app.py`.
 3. In Streamlit Cloud, add these values under **App settings → Secrets**. The app reads these secrets before loading the model:
 
    ```toml
-   TERRANOVA_ADAPTER = "BK0822/teranova"
+   TERRANOVA_ADAPTER = "BK0822/terranova-qwen25vl-eurosat"
    # Add only if the model repository is private:
    HF_TOKEN = "hf_your_read_token"
    ```
 
    | Variable | Required | Default | Description |
    | --- | --- | --- | --- |
-   | `TERRANOVA_ADAPTER` | No, if using the configured public adapter | Local adapter if present; otherwise `BK0822/teranova` | Adapter directory or Hugging Face model repository ID |
+   | `TERRANOVA_ADAPTER` | No, if using the configured public adapter | Local adapter if present; otherwise `BK0822/terranova-qwen25vl-eurosat` | Adapter directory or Hugging Face model repository ID |
    | `TERRANOVA_BASE_MODEL` | No | Local base model if present; otherwise `Qwen/Qwen2.5-VL-3B-Instruct` | Base model directory or Hugging Face model repository ID |
    | `HF_TOKEN` | Only if the adapter repository is private | Not set | Hugging Face read token; keep it in Secrets and never commit it |
 
