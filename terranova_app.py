@@ -24,7 +24,7 @@ BASE_MODEL_SOURCE = os.getenv("TERRANOVA_BASE_MODEL") or (
 ADAPTER_SOURCE = os.getenv("TERRANOVA_ADAPTER") or (
     str(ADAPTER_PATH)
     if (ADAPTER_PATH / "adapter_model.safetensors").exists()
-    else "BK0822/terranova-qwen25vl-eurosat"
+    else "BK0822/teranova"
 )
 HF_TOKEN = os.getenv("HF_TOKEN") or None
 
