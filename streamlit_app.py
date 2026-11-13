@@ -2,6 +2,7 @@ import os
 
 import pandas as pd
 import streamlit as st
+import torch
 from huggingface_hub.errors import HfHubHTTPError
 from PIL import Image
 from streamlit.errors import StreamlitSecretNotFoundError
@@ -36,7 +37,9 @@ if "batch_results" not in st.session_state:
 
 st.title("TerraNova / Image Intelligence")
 st.caption("Satellite land-cover analysis with Qwen2.5-VL and EuroSAT classes.")
-st.info("Built with Qwen. Model-generated reports are interpretations, not verified ground truth.")
+st.caption(
+    "Built with Qwen. Model-generated reports are interpretations, not verified ground truth."
+)
 adapter_setting = os.getenv(
     "TERRANOVA_ADAPTER",
     "BK0822/terranova-qwen25vl-eurosat",
@@ -88,12 +91,13 @@ with single_tab:
         key="single_image",
     )
     if uploaded_image is not None:
-        st.image(uploaded_image, caption=uploaded_image.name, use_container_width=True)
+        st.image(uploaded_image, caption=uploaded_image.name, width="stretch")
 
     if st.button("Analyze image", type="primary"):
         if uploaded_image is None:
             st.warning("Upload a satellite image to begin.")
         else:
+            st.session_state.single_result = None
             try:
                 uploaded_image.seek(0)
                 image = Image.open(uploaded_image).convert("RGB")
@@ -115,6 +119,11 @@ with single_tab:
                 st.error(str(error))
             except HfHubHTTPError as error:
                 show_model_loading_error(error)
+            except (MemoryError, torch.OutOfMemoryError):
+                st.error(
+                    "The Qwen2.5-VL 3B model ran out of memory. Use a larger-memory "
+                    "Streamlit instance or a GPU-backed host, then try the image again."
+                )
 
     if st.session_state.single_result:
         result = st.session_state.single_result
@@ -141,6 +150,7 @@ with batch_tab:
             st.warning("Upload one or more images to classify.")
         else:
             results = []
+            st.session_state.batch_results = []
             progress = st.progress(0, text="Preparing batch…")
             try:
                 for index, uploaded in enumerate(uploaded_images):
@@ -169,11 +179,16 @@ with batch_tab:
                 st.error(str(error))
             except HfHubHTTPError as error:
                 show_model_loading_error(error)
+            except (MemoryError, torch.OutOfMemoryError):
+                st.error(
+                    "The Qwen2.5-VL 3B model ran out of memory. Use a larger-memory "
+                    "Streamlit instance or a GPU-backed host, then try the images again."
+                )
 
     if st.session_state.batch_results:
         st.dataframe(
             pd.DataFrame(st.session_state.batch_results),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -181,7 +196,7 @@ with history_tab:
     if st.session_state.history:
         st.dataframe(
             pd.DataFrame(st.session_state.history),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
     else:

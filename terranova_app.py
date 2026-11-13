@@ -119,7 +119,7 @@ def load_model():
             )
             base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
                 BASE_MODEL_SOURCE,
-                torch_dtype=DTYPE,
+                dtype=DTYPE,
                 low_cpu_mem_usage=True,
                 device_map=None if DEVICE == "cpu" else {"": DEVICE},
                 token=HF_TOKEN,
