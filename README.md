@@ -68,14 +68,15 @@ Open [http://127.0.0.1:7860](http://127.0.0.1:7860). The first launch may downlo
 
 The app can run on a Gradio-compatible host with Python dependencies and enough memory for Qwen2.5-VL-3B. A GPU-backed host is recommended.
 
-1. Upload the trained adapter and its tokenizer/processor files to a Hugging Face model repository. Respect the model and dataset license terms when redistributing it.
-2. Deploy this repository as a Gradio app on your chosen host.
+1. Run the Hugging Face upload section in the Colab notebook. It publishes the adapter and processor files to `BK0822/terranova-qwen25vl-eurosat` and includes the required Qwen license and attribution.
+2. Deploy this repository as a Gradio app on a compatible host. This project is a Gradio app, not a Streamlit app; configure environment variables or secrets using your host's settings.
 3. Configure these environment variables:
 
    | Variable | Required | Default | Description |
    | --- | --- | --- | --- |
-   | `TERRANOVA_ADAPTER` | If no local adapter is present | Local `models/qwen25vl_eurosat_qlora` | Adapter directory or Hugging Face model repository ID |
+   | `TERRANOVA_ADAPTER` | If no local adapter is present | Local `models/qwen25vl_eurosat_qlora` | Adapter directory or Hugging Face model repository ID; use `BK0822/terranova-qwen25vl-eurosat` after uploading |
    | `TERRANOVA_BASE_MODEL` | No | Local base model if present; otherwise `Qwen/Qwen2.5-VL-3B-Instruct` | Base model directory or Hugging Face model repository ID |
+   | `HF_TOKEN` | Only if the adapter repository is private | Not set | Hugging Face access token; never commit it to the repository |
    | `GRADIO_SERVER_NAME` | No | `127.0.0.1` | Set to `0.0.0.0` on hosts that require external binding |
    | `PORT` | No | `7860` | Port supplied by the deployment host |
 
