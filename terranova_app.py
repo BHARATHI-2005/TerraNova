@@ -9,6 +9,7 @@ a Gradio interface; the user-facing interface is Streamlit.
 import os
 from pathlib import Path
 from threading import Lock
+from typing import Callable
 
 import gradio as gr
 import torch
@@ -43,7 +44,7 @@ ADAPTER_SOURCE = os.getenv("TERRANOVA_ADAPTER") or (
 HF_TOKEN = os.getenv("HF_TOKEN") or None
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
+DTYPE = torch.float16 if DEVICE == "cuda" else torch.bfloat16
 
 if DEVICE == "cpu":
     torch.set_num_threads(max(1, min(8, os.cpu_count() or 1)))
@@ -94,7 +95,7 @@ def _caused_by_hub_error(error: BaseException) -> bool:
     return False
 
 
-def load_model():
+def load_model(status_callback: Callable[[str], None] | None = None):
     global processor, model
 
     if ADAPTER_SOURCE.casefold() == "bk0822/teranova":
@@ -112,11 +113,18 @@ def load_model():
             return model, processor
 
         try:
+            if status_callback:
+                status_callback("Loading the Qwen image processor…")
             loaded_processor = AutoProcessor.from_pretrained(
                 BASE_MODEL_SOURCE,
                 use_fast=False,
                 token=HF_TOKEN,
             )
+            if status_callback:
+                status_callback(
+                    "Loading the Qwen2.5-VL 3B checkpoint in bfloat16. "
+                    "This may take several minutes on CPU…"
+                )
             base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
                 BASE_MODEL_SOURCE,
                 dtype=DTYPE,
@@ -125,6 +133,8 @@ def load_model():
                 token=HF_TOKEN,
             )
             base_model.to(DEVICE)
+            if status_callback:
+                status_callback("Loading the fine-tuned EuroSAT adapter…")
             loaded_model = PeftModel.from_pretrained(
                 base_model,
                 ADAPTER_SOURCE,
@@ -158,13 +168,14 @@ def load_model():
 def run_image_inference(
     image,
     language: str,
-    max_tokens: int = 80,
+    max_tokens: int = 40,
     temperature: float = 0.0,
+    status_callback: Callable[[str], None] | None = None,
 ):
     if image is None:
         raise gr.Error("Upload a satellite image to begin.")
 
-    active_model, active_processor = load_model()
+    active_model, active_processor = load_model(status_callback)
     image = image.convert("RGB")
     image.thumbnail((448, 448), Image.Resampling.BILINEAR)
     prompt = (
@@ -204,6 +215,8 @@ def run_image_inference(
     if temperature > 0.0:
         generation_kwargs["temperature"] = temperature
 
+    if status_callback:
+        status_callback("Generating the land-cover prediction…")
     with torch.inference_mode():
         generated = active_model.generate(**inputs, **generation_kwargs)
 

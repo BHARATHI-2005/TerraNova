@@ -77,7 +77,7 @@ with st.sidebar:
         [label for label, _ in core.language_choices],
     )
     language = dict(core.language_choices)[language_label]
-    max_tokens = st.slider("Maximum output length", 30, 160, 80, step=10)
+    max_tokens = st.slider("Maximum output length", 30, 160, 40, step=10)
     temperature = st.slider("Sampling temperature", 0.0, 1.0, 0.0, step=0.05)
 
 single_tab, batch_tab, history_tab = st.tabs(
@@ -98,13 +98,17 @@ with single_tab:
             st.warning("Upload a satellite image to begin.")
         else:
             st.session_state.single_result = None
+            status = st.status("Starting image analysis…", expanded=True)
             try:
                 uploaded_image.seek(0)
                 image = Image.open(uploaded_image).convert("RGB")
-                with st.spinner("Loading model and analyzing image…"):
-                    predicted_class, confidence, report = core.run_image_inference(
-                        image, language, max_tokens, temperature
-                    )
+                predicted_class, confidence, report = core.run_image_inference(
+                    image,
+                    language,
+                    max_tokens,
+                    temperature,
+                    status_callback=lambda message: status.update(label=message),
+                )
                 result = {
                     "image_name": uploaded_image.name,
                     "predicted_class": predicted_class,
@@ -113,13 +117,18 @@ with single_tab:
                 }
                 st.session_state.single_result = result
                 add_history(result)
+                status.update(label="Analysis complete", state="complete")
             except core.gr.Error as error:
+                status.update(label="Analysis could not be completed", state="error")
                 st.error(str(error))
             except core.ModelRepositoryAccessError as error:
+                status.update(label="Model loading failed", state="error")
                 st.error(str(error))
             except HfHubHTTPError as error:
+                status.update(label="Hugging Face model access failed", state="error")
                 show_model_loading_error(error)
             except (MemoryError, torch.OutOfMemoryError):
+                status.update(label="Model ran out of memory", state="error")
                 st.error(
                     "The Qwen2.5-VL 3B model ran out of memory. Use a larger-memory "
                     "Streamlit instance or a GPU-backed host, then try the image again."
@@ -152,14 +161,20 @@ with batch_tab:
             results = []
             st.session_state.batch_results = []
             progress = st.progress(0, text="Preparing batch…")
+            status = st.status("Starting batch analysis…", expanded=True)
             try:
                 for index, uploaded in enumerate(uploaded_images):
                     uploaded.seek(0)
                     image = Image.open(uploaded).convert("RGB")
-                    with st.spinner(f"Analyzing {uploaded.name}…"):
-                        predicted_class, confidence, report = core.run_image_inference(
-                            image, language, max_tokens, temperature
-                        )
+                    predicted_class, confidence, report = core.run_image_inference(
+                        image,
+                        language,
+                        max_tokens,
+                        temperature,
+                        status_callback=lambda message: status.update(
+                            label=f"{uploaded.name}: {message}"
+                        ),
+                    )
                     result = {
                         "image_name": uploaded.name,
                         "predicted_class": predicted_class,
@@ -173,13 +188,18 @@ with batch_tab:
                         text=f"Analyzed {index + 1} of {len(uploaded_images)} images",
                     )
                 st.session_state.batch_results = results
+                status.update(label="Batch analysis complete", state="complete")
             except core.gr.Error as error:
+                status.update(label="Batch analysis could not be completed", state="error")
                 st.error(str(error))
             except core.ModelRepositoryAccessError as error:
+                status.update(label="Model loading failed", state="error")
                 st.error(str(error))
             except HfHubHTTPError as error:
+                status.update(label="Hugging Face model access failed", state="error")
                 show_model_loading_error(error)
             except (MemoryError, torch.OutOfMemoryError):
+                status.update(label="Model ran out of memory", state="error")
                 st.error(
                     "The Qwen2.5-VL 3B model ran out of memory. Use a larger-memory "
                     "Streamlit instance or a GPU-backed host, then try the images again."
