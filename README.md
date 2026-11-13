@@ -59,17 +59,17 @@ These large model files are intentionally excluded from this Git repository. The
 ### 3. Start the app
 
 ```bash
-streamlit run streamlit_app.py
+streamlit run app.py
 ```
 
 Open the URL printed by Streamlit. The model loads when you run the first analysis, and may download several gigabytes of base-model weights. GPU acceleration is recommended; CPU inference may be slow. To run the original Gradio interface locally, use `python terranova_app.py`.
 
 ## Deploy
 
-The repository includes a Streamlit entry point (`streamlit_app.py`) and a Gradio entry point (`terranova_app.py`). For Streamlit Community Cloud, select `streamlit_app.py` as the app file. A GPU-backed host is recommended.
+The repository includes `app.py` as the Streamlit Cloud entry point (it launches `streamlit_app.py`) and a Gradio entry point (`terranova_app.py`). For Streamlit Community Cloud, select `app.py` as the app file. A GPU-backed host is recommended.
 
 1. Run the Hugging Face upload section in the Colab notebook. It publishes the adapter and processor files to `BK0822/terranova-qwen25vl-eurosat` and includes the required Qwen license and attribution.
-2. Deploy this repository as a Streamlit app using `streamlit_app.py`.
+2. Deploy this repository as a Streamlit app using `app.py`.
 3. In Streamlit Cloud, add these values under **App settings → Secrets**. The app reads these secrets before loading the model:
 
    ```toml
