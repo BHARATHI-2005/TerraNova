@@ -97,6 +97,13 @@ def _caused_by_hub_error(error: BaseException) -> bool:
 def load_model():
     global processor, model
 
+    if ADAPTER_SOURCE.casefold() == "bk0822/teranova":
+        raise ModelRepositoryAccessError(
+            "'BK0822/teranova' is a dataset repository, not a model adapter. "
+            "Publish the trained adapter to 'BK0822/terranova-qwen25vl-eurosat' "
+            "and set TERRANOVA_ADAPTER to that model repository."
+        )
+
     if model is not None and processor is not None:
         return model, processor
 

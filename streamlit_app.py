@@ -37,11 +37,22 @@ if "batch_results" not in st.session_state:
 st.title("TerraNova / Image Intelligence")
 st.caption("Satellite land-cover analysis with Qwen2.5-VL and EuroSAT classes.")
 st.info("Built with Qwen. Model-generated reports are interpretations, not verified ground truth.")
-st.caption(
-    "The fine-tuned adapter must be available at "
-    f"`{os.getenv('TERRANOVA_ADAPTER', 'BK0822/terranova-qwen25vl-eurosat')}`. "
-    "Make the Hugging Face repository public or add `HF_TOKEN` to Streamlit Secrets."
-)
+adapter_setting = os.getenv(
+    "TERRANOVA_ADAPTER",
+    "BK0822/terranova-qwen25vl-eurosat",
+).strip()
+if adapter_setting.casefold() == "bk0822/teranova":
+    st.warning(
+        "`TERRANOVA_ADAPTER` points to `BK0822/teranova`, which is a dataset repo. "
+        "Publish the trained adapter as the model repo "
+        "`BK0822/terranova-qwen25vl-eurosat`, then update this Streamlit Secret."
+    )
+else:
+    st.caption(
+        "The fine-tuned adapter must be available at "
+        f"`{adapter_setting}`. Make the Hugging Face repository public or add "
+        "`HF_TOKEN` to Streamlit Secrets."
+    )
 
 
 def show_model_loading_error(error):
