@@ -2,13 +2,14 @@ import os
 
 import pandas as pd
 import streamlit as st
+from huggingface_hub.errors import HfHubHTTPError
 from PIL import Image
 from streamlit.errors import StreamlitSecretNotFoundError
 
 st.set_page_config(page_title="TerraNova | Satellite Image Intelligence", layout="wide")
 
 try:
-    secrets = st.secrets
+    secrets = dict(st.secrets)
 except StreamlitSecretNotFoundError:
     secrets = {}
 
@@ -36,6 +37,24 @@ if "batch_results" not in st.session_state:
 st.title("TerraNova / Image Intelligence")
 st.caption("Satellite land-cover analysis with Qwen2.5-VL and EuroSAT classes.")
 st.info("Built with Qwen. Model-generated reports are interpretations, not verified ground truth.")
+st.caption(
+    "The fine-tuned adapter must be available at "
+    f"`{os.getenv('TERRANOVA_ADAPTER', 'BK0822/terranova-qwen25vl-eurosat')}`. "
+    "Make the Hugging Face repository public or add `HF_TOKEN` to Streamlit Secrets."
+)
+
+
+def show_model_loading_error(error):
+    status_code = getattr(getattr(error, "response", None), "status_code", None)
+    if status_code in (401, 403):
+        st.error(
+            "Hugging Face denied access to the model. Confirm the adapter repository "
+            "exists and is public, or add a valid read token as `HF_TOKEN` in "
+            "Streamlit Cloud → App settings → Secrets. If the repository is private, "
+            "also set `TERRANOVA_ADAPTER` to its exact repository ID."
+        )
+    else:
+        st.error(f"Could not download the model from Hugging Face: {error}")
 
 with st.sidebar:
     st.header("Analysis settings")
@@ -81,6 +100,8 @@ with single_tab:
                 add_history(result)
             except core.gr.Error as error:
                 st.error(str(error))
+            except HfHubHTTPError as error:
+                show_model_loading_error(error)
 
     if st.session_state.single_result:
         result = st.session_state.single_result
@@ -131,6 +152,8 @@ with batch_tab:
                 st.session_state.batch_results = results
             except core.gr.Error as error:
                 st.error(str(error))
+            except HfHubHTTPError as error:
+                show_model_loading_error(error)
 
     if st.session_state.batch_results:
         st.dataframe(

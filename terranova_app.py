@@ -25,6 +25,7 @@ ADAPTER_SOURCE = os.getenv("TERRANOVA_ADAPTER") or (
     if (ADAPTER_PATH / "adapter_model.safetensors").exists()
     else "BK0822/terranova-qwen25vl-eurosat"
 )
+HF_TOKEN = os.getenv("HF_TOKEN") or None
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
@@ -47,12 +48,17 @@ def load_model():
         if model is not None and processor is not None:
             return model, processor
 
-        loaded_processor = AutoProcessor.from_pretrained(ADAPTER_SOURCE, use_fast=True)
+        loaded_processor = AutoProcessor.from_pretrained(
+            ADAPTER_SOURCE,
+            use_fast=True,
+            token=HF_TOKEN,
+        )
         base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             BASE_MODEL_SOURCE,
             torch_dtype=DTYPE,
             low_cpu_mem_usage=True,
             device_map=None if DEVICE == "cpu" else {"": DEVICE},
+            token=HF_TOKEN,
         )
         base_model.to(DEVICE)
         loaded_model = PeftModel.from_pretrained(
@@ -60,6 +66,7 @@ def load_model():
             ADAPTER_SOURCE,
             device_map=None if DEVICE == "cpu" else {"": DEVICE},
             low_cpu_mem_usage=False,
+            token=HF_TOKEN,
         )
         loaded_model.eval()
         loaded_model.config.use_cache = True

@@ -72,6 +72,12 @@ The repository includes a Streamlit entry point (`streamlit_app.py`) and a Gradi
 2. Deploy this repository as a Streamlit app using `streamlit_app.py`.
 3. In Streamlit Cloud, add these values under **App settings → Secrets**. The app reads these secrets before loading the model:
 
+   ```toml
+   TERRANOVA_ADAPTER = "BK0822/terranova-qwen25vl-eurosat"
+   # Add only if the model repository is private:
+   HF_TOKEN = "hf_your_read_token"
+   ```
+
    | Variable | Required | Default | Description |
    | --- | --- | --- | --- |
    | `TERRANOVA_ADAPTER` | No, if using the configured public adapter | Local adapter if present; otherwise `BK0822/terranova-qwen25vl-eurosat` | Adapter directory or Hugging Face model repository ID |
@@ -82,7 +88,7 @@ The repository includes a Streamlit entry point (`streamlit_app.py`) and a Gradi
 
 The GitHub repository contains application code and setup instructions, not the model checkpoints. A deployment therefore needs access to a compatible adapter repository. If you prefer the Gradio interface, use a Gradio-compatible host and the `terranova_app.py` entry point instead.
 
-If the adapter repository is private, add both `TERRANOVA_ADAPTER` and `HF_TOKEN` to Streamlit Secrets. A Hugging Face `401` or repository access error usually means the repository is private, unavailable, or the token lacks read access.
+If the adapter repository is private, add both `TERRANOVA_ADAPTER` and `HF_TOKEN` to Streamlit Secrets. The app passes `HF_TOKEN` to the Hugging Face model loaders and displays an actionable message for access-denied responses. A `401` or repository access error means the repo is private or unavailable, or the token lacks read access; verify the exact repo ID and visibility on Hugging Face.
 
 ## Training
 
