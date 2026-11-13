@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from threading import Lock
 
 import gradio as gr
 import pandas as pd
@@ -14,21 +15,16 @@ BASE_DIR = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR / "models"
 BASE_MODEL_PATH = MODEL_DIR / "Qwen2.5-VL-3B-Instruct"
 ADAPTER_PATH = MODEL_DIR / "qwen25vl_eurosat_qlora"
-BASE_MODEL_SOURCE = os.getenv(
-    "TERRANOVA_BASE_MODEL",
-    str(BASE_MODEL_PATH) if (BASE_MODEL_PATH / "config.json").exists()
-    else "Qwen/Qwen2.5-VL-3B-Instruct",
+BASE_MODEL_SOURCE = os.getenv("TERRANOVA_BASE_MODEL") or (
+    str(BASE_MODEL_PATH)
+    if (BASE_MODEL_PATH / "config.json").exists()
+    else "Qwen/Qwen2.5-VL-3B-Instruct"
 )
-ADAPTER_SOURCE = os.getenv(
-    "TERRANOVA_ADAPTER",
-    str(ADAPTER_PATH) if (ADAPTER_PATH / "adapter_model.safetensors").exists() else "",
+ADAPTER_SOURCE = os.getenv("TERRANOVA_ADAPTER") or (
+    str(ADAPTER_PATH)
+    if (ADAPTER_PATH / "adapter_model.safetensors").exists()
+    else "BK0822/terranova-qwen25vl-eurosat"
 )
-
-if not ADAPTER_SOURCE:
-    raise RuntimeError(
-        "LoRA adapter not found. Set TERRANOVA_ADAPTER to a local adapter directory "
-        "or a Hugging Face model repository ID."
-    )
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
@@ -36,28 +32,43 @@ DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
 if DEVICE == "cpu":
     torch.set_num_threads(max(1, min(8, os.cpu_count() or 1)))
 
-processor = AutoProcessor.from_pretrained(ADAPTER_SOURCE, use_fast=True)
-base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-    BASE_MODEL_SOURCE,
-    torch_dtype=DTYPE,
-    low_cpu_mem_usage=True,
-    device_map=None if DEVICE == "cpu" else {"": DEVICE},
-)
-if DEVICE == "cuda":
-    base_model.to("cuda")
-else:
-    base_model.to("cpu")
+processor = None
+model = None
+_model_load_lock = Lock()
 
-model = PeftModel.from_pretrained(
-    base_model,
-    ADAPTER_SOURCE,
-    device_map=None if DEVICE == "cpu" else {"": DEVICE},
-    low_cpu_mem_usage=False,
-)
-model.eval()
-model.config.use_cache = True
-if hasattr(model, "enable_input_require_grads"):
-    model.enable_input_require_grads()
+
+def load_model():
+    global processor, model
+
+    if model is not None and processor is not None:
+        return model, processor
+
+    with _model_load_lock:
+        if model is not None and processor is not None:
+            return model, processor
+
+        loaded_processor = AutoProcessor.from_pretrained(ADAPTER_SOURCE, use_fast=True)
+        base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            BASE_MODEL_SOURCE,
+            torch_dtype=DTYPE,
+            low_cpu_mem_usage=True,
+            device_map=None if DEVICE == "cpu" else {"": DEVICE},
+        )
+        base_model.to(DEVICE)
+        loaded_model = PeftModel.from_pretrained(
+            base_model,
+            ADAPTER_SOURCE,
+            device_map=None if DEVICE == "cpu" else {"": DEVICE},
+            low_cpu_mem_usage=False,
+        )
+        loaded_model.eval()
+        loaded_model.config.use_cache = True
+        if hasattr(loaded_model, "enable_input_require_grads"):
+            loaded_model.enable_input_require_grads()
+
+        processor = loaded_processor
+        model = loaded_model
+        return model, processor
 
 app_classes = [
     "AnnualCrop",
@@ -143,6 +154,7 @@ def run_image_inference(image, language: str, max_tokens: int = 80, temperature:
     if image is None:
         raise gr.Error("Upload a satellite image to begin.")
 
+    active_model, active_processor = load_model()
     image = image.convert("RGB")
     image.thumbnail((448, 448), Image.Resampling.BILINEAR)
     prompt = (
@@ -160,12 +172,12 @@ def run_image_inference(image, language: str, max_tokens: int = 80, temperature:
             {"type": "text", "text": prompt},
         ],
     }]
-    formatted_prompt = processor.apply_chat_template(
+    formatted_prompt = active_processor.apply_chat_template(
         messages,
         tokenize=False,
         add_generation_prompt=True,
     )
-    inputs = processor(text=[formatted_prompt], images=[image], return_tensors="pt")
+    inputs = active_processor(text=[formatted_prompt], images=[image], return_tensors="pt")
     inputs = {
         key: value.to(DEVICE) if isinstance(value, torch.Tensor) else value
         for key, value in inputs.items()
@@ -179,10 +191,10 @@ def run_image_inference(image, language: str, max_tokens: int = 80, temperature:
         generation_kwargs["temperature"] = temperature
 
     with torch.inference_mode():
-        generated = model.generate(**inputs, **generation_kwargs)
+        generated = active_model.generate(**inputs, **generation_kwargs)
 
     prompt_length = inputs["input_ids"].shape[1]
-    report = processor.batch_decode(
+    report = active_processor.batch_decode(
         generated[:, prompt_length:],
         skip_special_tokens=True,
     )[0].strip()
@@ -377,13 +389,14 @@ with gr.Blocks(title="TerraNova | Satellite Image Intelligence", css=satellite_c
         outputs=[shared_history_state, history_dataframe_output],
     )
 
-server_name = os.getenv("GRADIO_SERVER_NAME", "127.0.0.1")
-server_port = int(os.getenv("PORT", "7860"))
-print(f"Starting TerraNova app on http://{server_name}:{server_port}")
-app.launch(
-    server_name=server_name,
-    server_port=server_port,
-    share=False,
-    show_error=True,
-    quiet=True,
-)
+if __name__ == "__main__":
+    server_name = os.getenv("GRADIO_SERVER_NAME", "127.0.0.1")
+    server_port = int(os.getenv("PORT", "7860"))
+    print(f"Starting TerraNova app on http://{server_name}:{server_port}")
+    app.launch(
+        server_name=server_name,
+        server_port=server_port,
+        share=False,
+        show_error=True,
+        quiet=True,
+    )

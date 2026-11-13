@@ -54,35 +54,35 @@ models/
 └── qwen25vl_eurosat_qlora/
 ```
 
-These large model files are intentionally excluded from this Git repository. The base model can also be downloaded from Hugging Face automatically. The adapter must be available locally or hosted in a Hugging Face model repository.
+These large model files are intentionally excluded from this Git repository. The base model can also be downloaded from Hugging Face automatically. The adapter is loaded from the local folder when present; otherwise the app uses `BK0822/terranova-qwen25vl-eurosat`.
 
 ### 3. Start the app
 
 ```bash
-python terranova_app.py
+streamlit run streamlit_app.py
 ```
 
-Open [http://127.0.0.1:7860](http://127.0.0.1:7860). The first launch may download several gigabytes of base-model weights if they are not already cached. GPU acceleration is recommended; CPU inference may be slow.
+Open the URL printed by Streamlit. The model loads when you run the first analysis, and may download several gigabytes of base-model weights. GPU acceleration is recommended; CPU inference may be slow. To run the original Gradio interface locally, use `python terranova_app.py`.
 
 ## Deploy
 
-The app can run on a Gradio-compatible host with Python dependencies and enough memory for Qwen2.5-VL-3B. A GPU-backed host is recommended.
+The repository includes a Streamlit entry point (`streamlit_app.py`) and a Gradio entry point (`terranova_app.py`). For Streamlit Community Cloud, select `streamlit_app.py` as the app file. A GPU-backed host is recommended.
 
 1. Run the Hugging Face upload section in the Colab notebook. It publishes the adapter and processor files to `BK0822/terranova-qwen25vl-eurosat` and includes the required Qwen license and attribution.
-2. Deploy this repository as a Gradio app on a compatible host. This project is a Gradio app, not a Streamlit app; configure environment variables or secrets using your host's settings.
-3. Configure these environment variables:
+2. Deploy this repository as a Streamlit app using `streamlit_app.py`.
+3. In Streamlit Cloud, add these values under **App settings → Secrets**. The app reads these secrets before loading the model:
 
    | Variable | Required | Default | Description |
    | --- | --- | --- | --- |
-   | `TERRANOVA_ADAPTER` | If no local adapter is present | Local `models/qwen25vl_eurosat_qlora` | Adapter directory or Hugging Face model repository ID; use `BK0822/terranova-qwen25vl-eurosat` after uploading |
+   | `TERRANOVA_ADAPTER` | No, if using the configured public adapter | Local adapter if present; otherwise `BK0822/terranova-qwen25vl-eurosat` | Adapter directory or Hugging Face model repository ID |
    | `TERRANOVA_BASE_MODEL` | No | Local base model if present; otherwise `Qwen/Qwen2.5-VL-3B-Instruct` | Base model directory or Hugging Face model repository ID |
-   | `HF_TOKEN` | Only if the adapter repository is private | Not set | Hugging Face access token; never commit it to the repository |
-   | `GRADIO_SERVER_NAME` | No | `127.0.0.1` | Set to `0.0.0.0` on hosts that require external binding |
-   | `PORT` | No | `7860` | Port supplied by the deployment host |
+   | `HF_TOKEN` | Only if the adapter repository is private | Not set | Hugging Face read token; keep it in Secrets and never commit it |
 
-4. Ensure the hosting plan has enough RAM/VRAM and storage for the model download and inference.
+4. Ensure the hosting plan has enough RAM and storage for the model download and inference. The 3B model may exceed the memory available on small or free CPU-only instances.
 
-The GitHub repository contains application code and setup instructions, not the model checkpoints. A deployment therefore needs access to a compatible adapter repository.
+The GitHub repository contains application code and setup instructions, not the model checkpoints. A deployment therefore needs access to a compatible adapter repository. If you prefer the Gradio interface, use a Gradio-compatible host and the `terranova_app.py` entry point instead.
+
+If the adapter repository is private, add both `TERRANOVA_ADAPTER` and `HF_TOKEN` to Streamlit Secrets. A Hugging Face `401` or repository access error usually means the repository is private, unavailable, or the token lacks read access.
 
 ## Training
 
