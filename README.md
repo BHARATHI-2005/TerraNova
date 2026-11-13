@@ -68,7 +68,7 @@ Open the URL printed by Streamlit. The model loads when you run the first analys
 
 The repository includes `app.py` as the Streamlit Cloud entry point (it launches `streamlit_app.py`) and a Gradio entry point (`terranova_app.py`). For Streamlit Community Cloud, select `app.py` as the app file. A GPU-backed host is recommended.
 
-1. Run the Hugging Face upload section in the Colab notebook. It creates the model repository `BK0822/terranova-qwen25vl-eurosat` and uploads the adapter and processor files with the required Qwen license and attribution. This is separate from the dataset repository `BK0822/teranova`.
+1. Run the Hugging Face upload section in the Colab notebook. It creates the model repository `BK0822/terranova-qwen25vl-eurosat` and uploads the adapter with the required Qwen license and attribution. This is separate from the dataset repository `BK0822/teranova`. The app loads the processor from the Qwen base model, so the adapter repository only needs `adapter_config.json` and `adapter_model.safetensors` (or `adapter_model.bin`).
 2. Deploy this repository as a Streamlit app using `app.py`.
 3. In Streamlit Cloud, add these values under **App settings → Secrets**. The app reads these secrets before loading the model:
 

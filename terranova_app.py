@@ -113,7 +113,7 @@ def load_model():
 
         try:
             loaded_processor = AutoProcessor.from_pretrained(
-                ADAPTER_SOURCE,
+                BASE_MODEL_SOURCE,
                 use_fast=True,
                 token=HF_TOKEN,
             )
