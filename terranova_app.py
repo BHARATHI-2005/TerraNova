@@ -114,7 +114,7 @@ def load_model():
         try:
             loaded_processor = AutoProcessor.from_pretrained(
                 BASE_MODEL_SOURCE,
-                use_fast=True,
+                use_fast=False,
                 token=HF_TOKEN,
             )
             base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
