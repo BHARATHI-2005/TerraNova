@@ -100,6 +100,8 @@ with single_tab:
                 add_history(result)
             except core.gr.Error as error:
                 st.error(str(error))
+            except core.ModelRepositoryAccessError as error:
+                st.error(str(error))
             except HfHubHTTPError as error:
                 show_model_loading_error(error)
 
@@ -151,6 +153,8 @@ with batch_tab:
                     )
                 st.session_state.batch_results = results
             except core.gr.Error as error:
+                st.error(str(error))
+            except core.ModelRepositoryAccessError as error:
                 st.error(str(error))
             except HfHubHTTPError as error:
                 show_model_loading_error(error)

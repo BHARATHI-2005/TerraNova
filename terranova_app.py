@@ -7,6 +7,7 @@ from threading import Lock
 import gradio as gr
 import pandas as pd
 import torch
+from huggingface_hub.errors import HfHubHTTPError
 from PIL import Image
 from peft import PeftModel
 from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
@@ -38,6 +39,21 @@ model = None
 _model_load_lock = Lock()
 
 
+class ModelRepositoryAccessError(RuntimeError):
+    pass
+
+
+def _caused_by_hub_error(error: BaseException) -> bool:
+    seen = set()
+    current = error.__cause__ or error.__context__
+    while current is not None and id(current) not in seen:
+        if isinstance(current, HfHubHTTPError):
+            return True
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    return False
+
+
 def load_model():
     global processor, model
 
@@ -48,26 +64,41 @@ def load_model():
         if model is not None and processor is not None:
             return model, processor
 
-        loaded_processor = AutoProcessor.from_pretrained(
-            ADAPTER_SOURCE,
-            use_fast=True,
-            token=HF_TOKEN,
-        )
-        base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            BASE_MODEL_SOURCE,
-            torch_dtype=DTYPE,
-            low_cpu_mem_usage=True,
-            device_map=None if DEVICE == "cpu" else {"": DEVICE},
-            token=HF_TOKEN,
-        )
-        base_model.to(DEVICE)
-        loaded_model = PeftModel.from_pretrained(
-            base_model,
-            ADAPTER_SOURCE,
-            device_map=None if DEVICE == "cpu" else {"": DEVICE},
-            low_cpu_mem_usage=False,
-            token=HF_TOKEN,
-        )
+        try:
+            loaded_processor = AutoProcessor.from_pretrained(
+                ADAPTER_SOURCE,
+                use_fast=True,
+                token=HF_TOKEN,
+            )
+            base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                BASE_MODEL_SOURCE,
+                torch_dtype=DTYPE,
+                low_cpu_mem_usage=True,
+                device_map=None if DEVICE == "cpu" else {"": DEVICE},
+                token=HF_TOKEN,
+            )
+            base_model.to(DEVICE)
+            loaded_model = PeftModel.from_pretrained(
+                base_model,
+                ADAPTER_SOURCE,
+                device_map=None if DEVICE == "cpu" else {"": DEVICE},
+                low_cpu_mem_usage=False,
+                token=HF_TOKEN,
+            )
+        except HfHubHTTPError as error:
+            raise ModelRepositoryAccessError(
+                f"Cannot access the configured Hugging Face model. Verify the repository "
+                f"ID '{ADAPTER_SOURCE}', make it public, or set a valid read token in "
+                "Streamlit Secrets as HF_TOKEN."
+            ) from error
+        except OSError as error:
+            if not _caused_by_hub_error(error):
+                raise
+            raise ModelRepositoryAccessError(
+                f"Cannot access the configured Hugging Face model. Verify the repository "
+                f"ID '{ADAPTER_SOURCE}', make it public, or set a valid read token in "
+                "Streamlit Secrets as HF_TOKEN."
+            ) from error
         loaded_model.eval()
         loaded_model.config.use_cache = True
         if hasattr(loaded_model, "enable_input_require_grads"):
